@@ -13,15 +13,20 @@ async function handleGenerateNewShortURL(req, res) {
 
     const shortId = shortid.generate();
 
-    const newURL = await URL.create({
+    await URL.create({
         shortId: shortId,
         redirectURL: body.url,
-        visitHistory: []
+        visitHistory: [],
+        createdBy: req.user._id,
     });
 
-    return res.json({
-        id: shortId
-    });
+    if (req.headers["accept"] && req.headers["accept"].includes("application/json") && !req.headers["content-type"]?.includes("application/x-www-form-urlencoded")) {
+        return res.json({
+            id: shortId
+        });
+    }
+
+    return res.redirect(`/?id=${shortId}`);
 }
 
 async function handleGetAnalytics(req, res) {
@@ -56,7 +61,7 @@ async function handleRedirect(req, res) {
             }
         },
         {
-            new: true
+            returnDocument: 'after'
         }
     );
 
@@ -64,7 +69,12 @@ async function handleRedirect(req, res) {
         return res.status(404).send("URL not found");
     }
 
-    return res.redirect(entry.redirectURL);
+    let targetURL = entry.redirectURL;
+    if (!targetURL.startsWith("http://") && !targetURL.startsWith("https://")) {
+        targetURL = `https://${targetURL}`;
+    }
+
+    return res.redirect(targetURL);
 }
 
 module.exports = {
